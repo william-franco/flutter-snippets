@@ -1,6 +1,6 @@
 {
-    "name": "app_value_notifier",
-    "short_name": "app_value_notifier",
+    "name": "flutter_snippets",
+    "short_name": "flutter_snippets",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
