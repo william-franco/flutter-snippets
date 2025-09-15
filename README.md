@@ -1,4 +1,4 @@
-# flutter Snippets
+# Flutter Snippets
 
 Under construction.
 
