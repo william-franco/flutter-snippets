@@ -192,57 +192,24 @@ class _NumberViewState extends State<NumberView> {
   }
 }
 
-/// Tipo para a função `selector`.
-///
-/// Recebe o [BuildContext] e o [controller] e retorna o valor selecionado.
-///
-/// Útil para extrair apenas uma parte do estado do [controller],
-/// evitando reconstruções desnecessárias de widgets.
+////////////////////////////////////////////////////////////////////////////////
+
+@protected
 typedef SelectorModel<C extends Listenable, T> =
     T Function(BuildContext context, C controller);
 
-/// Tipo para a função `builder`.
-///
-/// Recebe o [BuildContext], o valor selecionado ([model]) e um widget opcional
-/// [child], permitindo a construção do widget de forma declarativa.
+@protected
 typedef SelectorFunctionBuilder<T> =
     Widget Function(BuildContext context, T model, Widget? child);
 
-/// Função opcional para decidir se deve reconstruir.
+@protected
 typedef ShouldRebuild<T> = bool Function(T previous, T next);
 
-/// Um widget que observa um [controller] que implementa [Listenable]
-/// (ex.: `ChangeNotifier`, `ValueNotifier`) e reconstrói a UI apenas quando
-/// o valor selecionado muda.
-///
-/// Baseado em [ListenableBuilder], evitando uso de `setState` e garantindo
-/// rebuild granular.
-///
-/// ### Exemplo de uso:
-/// ```dart
-/// SelectorBuilderWidget<MyController, int>(
-///   controller: myController,
-///   selector: (context, controller) => controller.counter,
-///   shouldRebuild: (prev, next) => prev != next,
-///   builder: (context, counter, child) {
-///     return Text('Contador: $counter');
-///   },
-/// )
-/// ```
 class SelectorBuilderWidget<C extends Listenable, T> extends StatefulWidget {
-  /// O controller que será observado.
   final C controller;
-
-  /// Função responsável por selecionar o valor de [controller].
   final SelectorModel<C, T> selector;
-
-  /// Função responsável por construir o widget com o valor selecionado.
   final SelectorFunctionBuilder<T> builder;
-
-  /// Função opcional para decidir se deve reconstruir.
   final ShouldRebuild<T>? shouldRebuild;
-
-  /// Um widget filho opcional que não será reconstruído quando o estado mudar.
   final Widget? child;
 
   const SelectorBuilderWidget({
@@ -261,12 +228,12 @@ class SelectorBuilderWidget<C extends Listenable, T> extends StatefulWidget {
 
 class _SelectorBuilderWidgetState<C extends Listenable, T>
     extends State<SelectorBuilderWidget<C, T>> {
-  late T _previousValue;
+  late T _selectedValue;
 
   @override
   void initState() {
     super.initState();
-    _previousValue = widget.selector(context, widget.controller);
+    _selectedValue = widget.selector(context, widget.controller);
   }
 
   @override
@@ -274,20 +241,17 @@ class _SelectorBuilderWidgetState<C extends Listenable, T>
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        // Calcula o novo valor selecionado a cada notificação do controller
         final newValue = widget.selector(context, widget.controller);
 
-        // Verifica se realmente precisa reconstruir, usando shouldRebuild se fornecido
-        final needsRebuild =
-            widget.shouldRebuild?.call(_previousValue, newValue) ??
-            (newValue != _previousValue);
+        final rebuild =
+            widget.shouldRebuild?.call(_selectedValue, newValue) ??
+            (_selectedValue != newValue);
 
-        if (needsRebuild) {
-          _previousValue = newValue;
+        if (rebuild) {
+          _selectedValue = newValue;
         }
 
-        // Constrói o widget apenas com o valor atualizado
-        return widget.builder(context, _previousValue, widget.child);
+        return widget.builder(context, _selectedValue, widget.child);
       },
     );
   }

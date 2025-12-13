@@ -21,6 +21,35 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// Result Pattern
+sealed class Result<S, E extends Exception> {
+  const Result();
+
+  T fold<T>({
+    required T Function(S value) onSuccess,
+    required T Function(E error) onError,
+  }) {
+    switch (this) {
+      case Success(value: final v):
+        return onSuccess(v);
+      case Error(error: final e):
+        return onError(e);
+    }
+  }
+}
+
+final class Success<S, E extends Exception> extends Result<S, E> {
+  final S value;
+
+  const Success({required this.value});
+}
+
+final class Error<S, E extends Exception> extends Result<S, E> {
+  final E error;
+
+  const Error({required this.error});
+}
+
 // Model
 class UserModel {
   final String? name;
@@ -29,50 +58,53 @@ class UserModel {
 }
 
 // Repository
+typedef UserResult = Result<UserModel, Exception>;
+
 abstract interface class UserRepository {
-  Future<UserModel> getUserData();
+  Future<UserResult> findOneUser();
 }
 
 class UserRepositoryImpl implements UserRepository {
   @override
-  Future<UserModel> getUserData() async {
+  Future<UserResult> findOneUser() async {
     try {
       await Future.delayed(Duration(seconds: 4));
-      return UserModel(name: 'John Doe');
+      return Success(value: UserModel(name: 'John Doe'));
     } catch (error) {
-      throw Exception('An error occurred.');
+      return Error(error: Exception('An error occurred.'));
     }
   }
 }
 
 // ViewModel
-typedef _ViewModel = ChangeNotifier;
+typedef UserState = StateController<UserModel>;
 
-abstract interface class UserViewModel extends _ViewModel {
-  StateController<UserModel> get userState;
+abstract interface class UserViewModel {
+  UserState get controller;
 
   Future<void> getUserData();
 }
 
-class UserViewModelImpl extends _ViewModel implements UserViewModel {
+class UserViewModelImpl implements UserViewModel {
   final UserRepository userRepository;
 
   UserViewModelImpl({required this.userRepository});
 
-  final _userState = StateController<UserModel>();
+  final UserState _controller = UserState.loading();
 
   @override
-  StateController<UserModel> get userState => _userState;
+  UserState get controller => _controller;
 
   @override
   Future<void> getUserData() async {
-    try {
-      _userState.setLoading();
-      final user = await userRepository.getUserData();
-      _userState.setData(user);
-    } catch (error) {
-      _userState.setError(error);
-    }
+    _controller.setLoading();
+
+    final result = await userRepository.findOneUser();
+
+    result.fold(
+      onSuccess: (value) => _controller.setData(value),
+      onError: (error) => _controller.setError('$error'),
+    );
   }
 }
 
@@ -93,120 +125,129 @@ class _UserViewState extends State<UserView> {
     super.initState();
     userRepository = UserRepositoryImpl();
     userViewModel = UserViewModelImpl(userRepository: userRepository);
-    userViewModel.getUserData();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _getUserData();
+    });
   }
 
   @override
   void dispose() {
-    userViewModel.dispose();
+    userViewModel.controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _getUserData() async {
+    await userViewModel.getUserData();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Info'),
+        title: const Text('User'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
-            onPressed: () {
-              userViewModel.getUserData();
+            onPressed: () async {
+              await _getUserData();
             },
           ),
         ],
       ),
       body: Center(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            await userViewModel.getUserData();
+        child: StateBuilderWidget<UserState>(
+          controller: userViewModel.controller,
+          builder: (context, state) {
+            return state.value.when(
+              loading: () => const CircularProgressIndicator(),
+              data: (user) => Text('User: ${user.name}'),
+              error: (message) => Text('Error: $message'),
+            );
           },
-          child: ListenableBuilder(
-            listenable: userViewModel.userState,
-            builder: (context, child) {
-              return userViewModel.userState.state.when(
-                loading: () => const CircularProgressIndicator(),
-                data: (user) => Text('Usuer: ${user.name}'),
-                error: (message) => Text('Error: $message'),
-              );
-            },
-          ),
         ),
       ),
     );
   }
 }
 
-/// Representa o estado genérico de uma operação.
-///
-/// Usa `sealed class` para garantir que o `switch` seja exaustivo,
-/// melhorando a segurança de tipo.
-sealed class StateValue<T> {
-  const StateValue();
+// Generic State Pattern
+class StateValue<T> {
+  final T? data;
+  final Object? error;
+  final bool isLoading;
 
-  /// Facilita o consumo do estado na View.
+  StateValue._({this.data, this.error, required this.isLoading});
+
+  factory StateValue.loading() => StateValue._(isLoading: true);
+  factory StateValue.error(Object error) =>
+      StateValue._(isLoading: false, error: error);
+  factory StateValue.data(T data) => StateValue._(isLoading: false, data: data);
+
   Widget when({
     required Widget Function() loading,
-    required Widget Function(T value) data,
     required Widget Function(Object error) error,
+    required Widget Function(T data) data,
   }) {
-    return switch (this) {
-      Loading<T>() => loading(),
-      Data<T>(value: final v) => data(v),
-      ErrorState<T>(exception: final e) => error(e),
-    };
+    if (isLoading) {
+      return loading();
+    } else if (this.error != null) {
+      return error(this.error!);
+    } else if (this.data != null) {
+      return data(this.data as T);
+    }
+    throw StateError('Invalid state: no data, error, or loading.');
   }
 }
 
-/// Estado de carregamento.
-final class Loading<T> extends StateValue<T> {
-  const Loading();
-}
-
-/// Estado com dado.
-final class Data<T> extends StateValue<T> {
-  final T value;
-  const Data(this.value);
-}
-
-/// Estado de erro.
-final class ErrorState<T> extends StateValue<T> {
-  final Object exception;
-  const ErrorState(this.exception);
-}
-
-/// Controller genérico que expõe um estado [StateValue] e notifica ouvintes.
-///
-/// Ele mesmo é um `Listenable`, garantindo compatibilidade com:
-/// - [ListenableBuilder]
-/// - [AnimatedBuilder]
-/// - [ValueListenableBuilder] (com adaptação)
-///
-/// Pode ser usado diretamente ou herdado em ViewModels.
-class StateController<T> with ChangeNotifier implements Listenable {
+// State management with when condition based on StateValue<T>
+class StateController<T> extends ChangeNotifier {
   StateValue<T> _state;
 
-  /// Cria um controller com um estado inicial opcional.
-  StateController([StateValue<T>? initial])
-    : _state = initial ?? const Loading();
+  StateController(this._state);
 
-  /// Retorna o estado atual.
-  StateValue<T> get state => _state;
+  factory StateController.loading() => StateController<T>(StateValue.loading());
 
-  /// Define um novo estado e notifica ouvintes somente se mudou.
-  set state(StateValue<T> newState) {
-    if (_state != newState) {
-      _state = newState;
-      notifyListeners();
-      debugPrint('StateController<$T> -> $newState');
-    }
+  factory StateController.data(T data) =>
+      StateController<T>(StateValue.data(data));
+
+  factory StateController.error(Object error) =>
+      StateController<T>(StateValue.error(error));
+
+  StateValue<T> get value => _state;
+
+  void _update(StateValue<T> newValue) {
+    _state = newValue;
+    notifyListeners();
+    debugPrint('State: $_state');
   }
 
-  /// Atalhos para facilitar uso no ViewModel.
-  void setLoading() => state = const Loading();
-  void setError(Object e) => state = ErrorState(e);
-  void setData(T data) => state = Data(data);
+  void setLoading() => _update(StateValue.loading());
+  void setError(Object error) => _update(StateValue.error(error));
+  void setData(T data) => _update(StateValue.data(data));
 
   @override
   String toString() => 'StateController<$T>(state: $_state)';
+}
+
+@protected
+typedef StateBuilder<C extends ChangeNotifier> =
+    Widget Function(BuildContext context, C controller);
+
+class StateBuilderWidget<C extends ChangeNotifier> extends StatelessWidget {
+  final C controller;
+  final StateBuilder<C> builder;
+
+  const StateBuilderWidget({
+    super.key,
+    required this.controller,
+    required this.builder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => builder(context, controller),
+    );
+  }
 }

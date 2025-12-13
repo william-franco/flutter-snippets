@@ -75,8 +75,10 @@ class UserRepositoryImpl implements UserRepository {
 // ViewModel
 typedef _ViewModel = ChangeNotifier;
 
+typedef UserState = AppState<UserModel>;
+
 abstract interface class UserViewModel extends _ViewModel {
-  AppState<UserModel?> get userState;
+  UserState get userState;
 
   Future<void> getUserData();
 }
@@ -86,10 +88,10 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
 
   UserViewModelImpl({required this.userRepository});
 
-  AppState<UserModel?> _userState = InitialState();
+  UserState _userState = InitialState();
 
   @override
-  AppState<UserModel?> get userState => _userState;
+  UserState get userState => _userState;
 
   @override
   Future<void> getUserData() async {
@@ -104,7 +106,7 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
     }
   }
 
-  void _emit(AppState<UserModel> newValue) {
+  void _emit(UserState newValue) {
     if (_userState != newValue) {
       _userState = newValue;
       notifyListeners();
@@ -130,13 +132,19 @@ class _UserViewState extends State<UserView> {
     super.initState();
     userRepository = UserRepositoryImpl();
     userViewModel = UserViewModelImpl(userRepository: userRepository);
-    userViewModel.getUserData();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _getUserData();
+    });
   }
 
   @override
   void dispose() {
     userViewModel.dispose();
     super.dispose();
+  }
+
+  Future<void> _getUserData() async {
+    await userViewModel.getUserData();
   }
 
   @override
@@ -147,8 +155,8 @@ class _UserViewState extends State<UserView> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
-            onPressed: () {
-              userViewModel.getUserData();
+            onPressed: () async {
+              await _getUserData();
             },
           ),
         ],
@@ -156,7 +164,7 @@ class _UserViewState extends State<UserView> {
       body: Center(
         child: RefreshIndicator(
           onRefresh: () async {
-            await userViewModel.getUserData();
+            await _getUserData();
           },
           child: ListenableBuilder(
             listenable: userViewModel,
@@ -164,7 +172,7 @@ class _UserViewState extends State<UserView> {
               return switch (userViewModel.userState) {
                 InitialState() => const SizedBox.shrink(),
                 LoadingState() => const CircularProgressIndicator(),
-                SuccessState(data: final user) => Text('Usuer: ${user?.name}'),
+                SuccessState(data: final user) => Text('User: ${user.name}'),
                 ErrorState(message: final message) => Text('Error: $message'),
               };
             },
