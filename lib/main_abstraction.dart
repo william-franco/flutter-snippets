@@ -21,6 +21,31 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// Generic State Pattern
+sealed class AppState<T> {
+  const AppState();
+}
+
+final class InitialState<T> extends AppState<T> {
+  const InitialState();
+}
+
+final class LoadingState<T> extends AppState<T> {
+  const LoadingState();
+}
+
+final class SuccessState<T> extends AppState<T> {
+  final T data;
+
+  const SuccessState({required this.data});
+}
+
+final class ErrorState<T> extends AppState<T> {
+  final String message;
+
+  const ErrorState({required this.message});
+}
+
 // Result Pattern
 sealed class Result<S, E extends Exception> {
   const Result();
@@ -77,7 +102,9 @@ class UserRepositoryImpl implements UserRepository {
 }
 
 // ViewModel
-typedef _ViewModel = AsyncStateManagement<UserModel>;
+typedef _ViewModel = StateManagement<UserState>;
+
+typedef UserState = AppState<UserModel>;
 
 abstract interface class UserViewModel extends _ViewModel {
   UserViewModel(super.initialState);
@@ -88,18 +115,27 @@ abstract interface class UserViewModel extends _ViewModel {
 class UserViewModelImpl extends _ViewModel implements UserViewModel {
   final UserRepository userRepository;
 
-  UserViewModelImpl({required this.userRepository}) : super(StateLoading());
+  UserViewModelImpl({required this.userRepository}) : super(InitialState());
 
   @override
   Future<void> getUserData() async {
-    setLoading();
+    _emit(LoadingState());
 
     final result = await userRepository.findOneUser();
 
-    result.fold(
-      onSuccess: (value) => setData(value),
-      onError: (error) => setError('$error'),
+    final userState = result.fold<UserState>(
+      onSuccess: (value) => SuccessState(data: value),
+      onError: (error) => ErrorState(message: '$error'),
     );
+
+    _emit(userState);
+  }
+
+  void _emit(UserState newState) {
+    if (state != newState) {
+      emitState(newState);
+      debugPrint('User state: $state');
+    }
   }
 }
 
@@ -153,11 +189,12 @@ class _UserViewState extends State<UserView> {
         child: StateBuilderWidget<UserViewModel>(
           viewModel: userViewModel,
           builder: (context, viewModel) {
-            return viewModel.state.when(
-              loading: () => const CircularProgressIndicator(),
-              data: (user) => Text('User: ${user.name}'),
-              error: (message) => Text('Error: $message'),
-            );
+            return switch (viewModel.state) {
+              InitialState() => const SizedBox.shrink(),
+              LoadingState() => const CircularProgressIndicator(),
+              SuccessState(data: final user) => Text('User: ${user.name}'),
+              ErrorState(message: final message) => Text('Error: $message'),
+            };
           },
         ),
       ),
@@ -165,85 +202,23 @@ class _UserViewState extends State<UserView> {
   }
 }
 
-// Generic State Pattern for AsyncStateManagement<T>
-sealed class StateValue<T> {
-  const StateValue();
+// StateManagement abstracted
+abstract class StateManagement<T> extends ChangeNotifier {
+  T _state;
 
-  R when<R>({
-    required R Function() loading,
-    required R Function(Object error) error,
-    required R Function(T data) data,
-  });
-}
+  StateManagement(T initialState) : _state = initialState;
 
-class StateLoading<T> extends StateValue<T> {
-  const StateLoading();
-
-  @override
-  R when<R>({
-    required R Function() loading,
-    required R Function(Object error) error,
-    required R Function(T data) data,
-  }) {
-    return loading();
-  }
-}
-
-class StateError<T> extends StateValue<T> {
-  final Object errorValue;
-
-  const StateError(this.errorValue);
-
-  @override
-  R when<R>({
-    required R Function() loading,
-    required R Function(Object error) error,
-    required R Function(T data) data,
-  }) {
-    return error(errorValue);
-  }
-}
-
-class StateData<T> extends StateValue<T> {
-  final T dataValue;
-
-  const StateData(this.dataValue);
-
-  @override
-  R when<R>({
-    required R Function() loading,
-    required R Function(Object error) error,
-    required R Function(T data) data,
-  }) {
-    return data(dataValue);
-  }
-}
-
-abstract class AsyncStateManagement<T> extends ChangeNotifier {
-  StateValue<T> _state;
-
-  AsyncStateManagement(StateValue<T> initialState) : _state = initialState;
-
-  StateValue<T> get state => _state;
+  T get state => _state;
 
   @protected
-  void emitState(StateValue<T> newState) {
+  void emitState(T newState) {
     if (identical(_state, newState)) return;
     _state = newState;
     notifyListeners();
   }
-
-  @protected
-  void setLoading() => emitState(const StateLoading());
-
-  @protected
-  void setError(Object error) => emitState(StateError<T>(error));
-
-  @protected
-  void setData(T data) => emitState(StateData<T>(data));
 }
 
-// Builder for AsyncStateManagement<T>
+// Builder for StateManagement
 @protected
 typedef StateBuilder<S> = Widget Function(BuildContext context, S state);
 

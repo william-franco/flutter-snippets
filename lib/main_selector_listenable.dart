@@ -192,8 +192,6 @@ class _NumberViewState extends State<NumberView> {
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
 @protected
 typedef SelectorModel<C extends Listenable, T> =
     T Function(BuildContext context, C controller);
@@ -241,14 +239,14 @@ class _SelectorBuilderWidgetState<C extends Listenable, T>
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        final newValue = widget.selector(context, widget.controller);
+        final newState = widget.selector(context, widget.controller);
 
         final rebuild =
-            widget.shouldRebuild?.call(_selectedValue, newValue) ??
-            (_selectedValue != newValue);
+            widget.shouldRebuild?.call(_selectedValue, newState) ??
+            (_selectedValue != newState);
 
         if (rebuild) {
-          _selectedValue = newValue;
+          _selectedValue = newState;
         }
 
         return widget.builder(context, _selectedValue, widget.child);

@@ -167,9 +167,9 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
     _emit(state);
   }
 
-  void _emit(UserState newValue) {
-    if (_userState != newValue) {
-      _userState = newValue;
+  void _emit(UserState newState) {
+    if (_userState != newState) {
+      _userState = newState;
       notifyListeners();
       debugPrint('User state: $_userState');
     }
