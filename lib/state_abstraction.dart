@@ -132,10 +132,8 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
   }
 
   void _emit(UserState newState) {
-    if (state != newState) {
-      emitState(newState);
-      debugPrint('User state: $state');
-    }
+    emitState(newState);
+    debugPrint('User state: $state');
   }
 }
 
@@ -186,10 +184,10 @@ class _UserViewState extends State<UserView> {
         ],
       ),
       body: Center(
-        child: StateBuilderWidget<UserViewModel>(
+        child: StateBuilderWidget<UserViewModel, UserState>(
           viewModel: userViewModel,
-          builder: (context, viewModel) {
-            return switch (viewModel.state) {
+          builder: (context, userState) {
+            return switch (userState) {
               InitialState() => const SizedBox.shrink(),
               LoadingState() => const CircularProgressIndicator(),
               SuccessState(data: final user) => Text('User: ${user.name}'),
@@ -214,29 +212,39 @@ abstract class StateManagement<T> extends ChangeNotifier {
   void emitState(T newState) {
     if (identical(_state, newState)) return;
     _state = newState;
+    debugPrint('StateManagement<$T> -> $newState');
     notifyListeners();
   }
+
+  @override
+  String toString() => 'StateManagement<$T>(state: $_state)';
 }
 
 // Builder for StateManagement
 @protected
 typedef StateBuilder<S> = Widget Function(BuildContext context, S state);
 
-class StateBuilderWidget<T extends ChangeNotifier> extends StatelessWidget {
-  final T viewModel;
-  final StateBuilder<T> builder;
+class StateBuilderWidget<V extends StateManagement<S>, S>
+    extends StatelessWidget {
+  final V viewModel;
+  final StateBuilder<S> builder;
+  final Widget? child;
 
   const StateBuilderWidget({
     super.key,
-    required this.builder,
     required this.viewModel,
+    required this.builder,
+    this.child,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: viewModel,
-      builder: (context, _) => builder(context, viewModel),
+      child: child,
+      builder: (context, child) {
+        return builder(context, viewModel.state);
+      },
     );
   }
 }

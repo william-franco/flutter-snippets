@@ -46,35 +46,6 @@ final class ErrorState<T> extends AppState<T> {
   const ErrorState({required this.message});
 }
 
-// Result (Functional programming)
-sealed class Result<S, E extends Exception> {
-  const Result();
-
-  T fold<T>({
-    required T Function(S value) onSuccess,
-    required T Function(E error) onError,
-  }) {
-    switch (this) {
-      case SuccessResult(value: final v):
-        return onSuccess(v);
-      case ErrorResult(error: final e):
-        return onError(e);
-    }
-  }
-}
-
-final class SuccessResult<S, E extends Exception> extends Result<S, E> {
-  final S value;
-
-  const SuccessResult({required this.value});
-}
-
-final class ErrorResult<S, E extends Exception> extends Result<S, E> {
-  final E error;
-
-  const ErrorResult({required this.error});
-}
-
 // Model
 class UserModel {
   final String? name;
@@ -83,20 +54,20 @@ class UserModel {
 }
 
 // Repository
-typedef UserResult = Result<UserModel, Exception>; // Functional programming
+typedef UserResult = (UserModel? user, Exception? exception); // Records
 
 abstract interface class UserRepository {
-  Future<UserResult> findOneUser();
+  Future<UserResult> getUserData();
 }
 
 class UserRepositoryImpl implements UserRepository {
   @override
-  Future<UserResult> findOneUser() async {
+  Future<UserResult> getUserData() async {
     try {
       await Future.delayed(Duration(seconds: 4));
-      return SuccessResult(value: UserModel(name: 'John Doe'));
+      return (UserModel(name: 'John Doe'), null);
     } catch (error) {
-      return ErrorResult(error: Exception('An error occurred.'));
+      return (null, Exception('An error occurred.'));
     }
   }
 }
@@ -126,22 +97,19 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
   Future<void> getUserData() async {
     _emit(LoadingState());
 
-    final result = await userRepository.findOneUser();
+    final (user, error) = await userRepository.getUserData();
 
-    final state = result.fold<UserState>(
-      onSuccess: (value) => SuccessState(data: value),
-      onError: (error) => ErrorState(message: '$error'),
-    );
-
-    _emit(state);
+    if (user != null) {
+      _emit(SuccessState(data: user));
+    } else {
+      _emit(ErrorState(message: '$error'));
+    }
   }
 
   void _emit(UserState newState) {
-    if (_userState != newState) {
-      _userState = newState;
-      notifyListeners();
-      debugPrint('User state: $_userState');
-    }
+    _userState = newState;
+    notifyListeners();
+    debugPrint('User state: $userState');
   }
 }
 

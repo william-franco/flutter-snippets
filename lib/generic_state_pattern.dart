@@ -54,20 +54,18 @@ class UserModel {
 }
 
 // Repository
-typedef UserResult = (UserModel? user, Exception? exception); // Records
-
 abstract interface class UserRepository {
-  Future<UserResult> getUserData();
+  Future<UserModel> getUserData();
 }
 
 class UserRepositoryImpl implements UserRepository {
   @override
-  Future<UserResult> getUserData() async {
+  Future<UserModel> getUserData() async {
     try {
       await Future.delayed(Duration(seconds: 4));
-      return (UserModel(name: 'John Doe'), null);
+      return UserModel(name: 'John Doe');
     } catch (error) {
-      return (null, Exception('An error occurred.'));
+      throw Exception('An error occurred.');
     }
   }
 }
@@ -95,23 +93,19 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
 
   @override
   Future<void> getUserData() async {
-    _emit(LoadingState());
-
-    final (user, error) = await userRepository.getUserData();
-
-    if (user != null) {
-      _emit(SuccessState(data: user));
-    } else {
+    try {
+      _emit(LoadingState());
+      final result = await userRepository.getUserData();
+      _emit(SuccessState(data: result));
+    } catch (error) {
       _emit(ErrorState(message: '$error'));
     }
   }
 
   void _emit(UserState newState) {
-    if (_userState != newState) {
-      _userState = newState;
-      notifyListeners();
-      debugPrint('User state: $_userState');
-    }
+    _userState = newState;
+    notifyListeners();
+    debugPrint('User state: $userState');
   }
 }
 
@@ -151,7 +145,7 @@ class _UserViewState extends State<UserView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Info'),
+        title: const Text('User'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
@@ -162,21 +156,16 @@ class _UserViewState extends State<UserView> {
         ],
       ),
       body: Center(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            await _getUserData();
+        child: ListenableBuilder(
+          listenable: userViewModel,
+          builder: (context, child) {
+            return switch (userViewModel.userState) {
+              InitialState() => const SizedBox.shrink(),
+              LoadingState() => const CircularProgressIndicator(),
+              SuccessState(data: final user) => Text('User: ${user.name}'),
+              ErrorState(message: final message) => Text('Error: $message'),
+            };
           },
-          child: ListenableBuilder(
-            listenable: userViewModel,
-            builder: (context, child) {
-              return switch (userViewModel.userState) {
-                InitialState() => const SizedBox.shrink(),
-                LoadingState() => const CircularProgressIndicator(),
-                SuccessState(data: final user) => Text('User: ${user.name}'),
-                ErrorState(message: final message) => Text('Error: $message'),
-              };
-            },
-          ),
         ),
       ),
     );

@@ -46,7 +46,7 @@ final class ErrorState<T> extends AppState<T> {
   const ErrorState({required this.message});
 }
 
-// Result (Functional programming)
+// Result Pattern
 sealed class Result<S, E extends Exception> {
   const Result();
 
@@ -75,37 +75,6 @@ final class ErrorResult<S, E extends Exception> extends Result<S, E> {
   const ErrorResult({required this.error});
 }
 
-// Generic model for errors
-class InfoErrorModel {
-  final int? statusCode;
-  final String? title;
-  final String? description;
-
-  const InfoErrorModel({this.statusCode, this.title, this.description});
-
-  InfoErrorModel copyWith({
-    int? statusCode,
-    String? title,
-    String? description,
-  }) => InfoErrorModel(
-    statusCode: statusCode ?? this.statusCode,
-    title: title ?? this.title,
-    description: description ?? this.description,
-  );
-
-  factory InfoErrorModel.fromJson(Map<String, dynamic> json) => InfoErrorModel(
-    statusCode: json['status_code'],
-    title: json['title'],
-    description: json['description'],
-  );
-
-  Map<String, dynamic> toJson() => {
-    'status_code': statusCode,
-    'title': title,
-    'description': description,
-  };
-}
-
 // Model
 class UserModel {
   final String? name;
@@ -114,7 +83,7 @@ class UserModel {
 }
 
 // Repository
-typedef UserResult = Result<UserModel, Exception>; // Functional programming
+typedef UserResult = Result<UserModel, Exception>;
 
 abstract interface class UserRepository {
   Future<UserResult> findOneUser();
@@ -168,11 +137,9 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
   }
 
   void _emit(UserState newState) {
-    if (_userState != newState) {
-      _userState = newState;
-      notifyListeners();
-      debugPrint('User state: $_userState');
-    }
+    _userState = newState;
+    notifyListeners();
+    debugPrint('User state: $userState');
   }
 }
 
@@ -217,7 +184,7 @@ class _UserViewState extends State<UserView> {
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
             onPressed: () async {
-              await _refreshUser();
+              await _getUserData();
             },
           ),
         ],
@@ -225,7 +192,7 @@ class _UserViewState extends State<UserView> {
       body: Center(
         child: RefreshIndicator(
           onRefresh: () async {
-            await _refreshUser();
+            await _getUserData();
           },
           child: ListenableBuilder(
             listenable: userViewModel,
@@ -241,68 +208,5 @@ class _UserViewState extends State<UserView> {
         ),
       ),
     );
-  }
-
-  void _snackBarWidget(String title, String description, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14.0,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              description,
-              style: TextStyle(
-                fontSize: 12.0,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  Future<void> _refreshUser() async {
-    if (!context.mounted) return;
-
-    // Mock api response.
-    final infoSuccess = InfoErrorModel(
-      statusCode: 200,
-      title: 'Success',
-      description: 'Updated user.',
-    );
-    final infoError = InfoErrorModel(
-      statusCode: 400,
-      title: 'Error',
-      description: 'User not updated.',
-    );
-
-    try {
-      await _getUserData().then((_) {
-        _snackBarWidget(
-          infoSuccess.title ?? '',
-          infoSuccess.description ?? '',
-          Colors.green,
-        );
-      });
-    } catch (error) {
-      _snackBarWidget(
-        infoError.title ?? '',
-        infoError.description ?? '',
-        Colors.red,
-      );
-    }
   }
 }

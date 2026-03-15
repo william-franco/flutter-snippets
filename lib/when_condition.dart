@@ -150,10 +150,10 @@ class _UserViewState extends State<UserView> {
         ],
       ),
       body: Center(
-        child: StateBuilderWidget<UserViewModel>(
+        child: AsyncStateBuilderWidget<UserViewModel, UserModel>(
           viewModel: userViewModel,
-          builder: (context, viewModel) {
-            return viewModel.state.when(
+          builder: (context, userState) {
+            return userState.when(
               loading: () => const CircularProgressIndicator(),
               data: (user) => Text('User: ${user.name}'),
               error: (message) => Text('Error: $message'),
@@ -184,9 +184,7 @@ class StateLoading<T> extends StateValue<T> {
     required R Function() loading,
     required R Function(Object error) error,
     required R Function(T data) data,
-  }) {
-    return loading();
-  }
+  }) => loading();
 }
 
 class StateError<T> extends StateValue<T> {
@@ -199,9 +197,7 @@ class StateError<T> extends StateValue<T> {
     required R Function() loading,
     required R Function(Object error) error,
     required R Function(T data) data,
-  }) {
-    return error(errorValue);
-  }
+  }) => error(errorValue);
 }
 
 class StateData<T> extends StateValue<T> {
@@ -214,9 +210,7 @@ class StateData<T> extends StateValue<T> {
     required R Function() loading,
     required R Function(Object error) error,
     required R Function(T data) data,
-  }) {
-    return data(dataValue);
-  }
+  }) => data(dataValue);
 }
 
 abstract class AsyncStateManagement<T> extends ChangeNotifier {
@@ -230,8 +224,12 @@ abstract class AsyncStateManagement<T> extends ChangeNotifier {
   void emitState(StateValue<T> newState) {
     if (identical(_state, newState)) return;
     _state = newState;
+    debugPrint('AsyncStateManagement<$T> -> $newState');
     notifyListeners();
   }
+
+  @override
+  String toString() => 'AsyncStateManagement<$T>(state: $_state)';
 
   @protected
   void setLoading() => emitState(const StateLoading());
@@ -245,23 +243,30 @@ abstract class AsyncStateManagement<T> extends ChangeNotifier {
 
 // Builder for AsyncStateManagement<T>
 @protected
-typedef StateBuilder<S> = Widget Function(BuildContext context, S state);
+typedef AsyncStateBuilder<S> =
+    Widget Function(BuildContext context, StateValue<S> state);
 
-class StateBuilderWidget<T extends ChangeNotifier> extends StatelessWidget {
-  final T viewModel;
-  final StateBuilder<T> builder;
+class AsyncStateBuilderWidget<V extends AsyncStateManagement<S>, S>
+    extends StatelessWidget {
+  final V viewModel;
+  final AsyncStateBuilder<S> builder;
+  final Widget? child;
 
-  const StateBuilderWidget({
+  const AsyncStateBuilderWidget({
     super.key,
-    required this.builder,
     required this.viewModel,
+    required this.builder,
+    this.child,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: viewModel,
-      builder: (context, _) => builder(context, viewModel),
+      child: child,
+      builder: (context, child) {
+        return builder(context, viewModel.state);
+      },
     );
   }
 }

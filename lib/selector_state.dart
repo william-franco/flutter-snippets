@@ -134,27 +134,27 @@ class _NumberViewState extends State<NumberView> {
             ),
             SizedBox(height: 8.0),
             SelectorBuilderWidget<CounterViewModel, int>(
-              controller: counterViewModel,
-              selector: (context, controller) => controller.number1,
-              shouldRebuild: (prev, next) => prev != next,
-              builder: (context, number1, child) {
+              viewModel: counterViewModel,
+              selector: (viewModel) => viewModel.number1,
+              // shouldRebuild: (previous, current) => previous != current,
+              builder: (context, value) {
                 return Container(
                   color: Colors.red,
                   padding: EdgeInsets.all(10),
-                  child: Text('$number1'),
+                  child: Text('$value'),
                 );
               },
             ),
             SizedBox(height: 8.0),
             SelectorBuilderWidget<CounterViewModel, int>(
-              controller: counterViewModel,
-              selector: (context, provider) => provider.number2,
-              shouldRebuild: (prev, next) => prev != next,
-              builder: (context, number2, child) {
+              viewModel: counterViewModel,
+              selector: (viewModel) => viewModel.number2,
+              // shouldRebuild: (previous, current) => previous != current,
+              builder: (context, value) {
                 return Container(
                   color: Colors.green,
                   padding: EdgeInsets.all(10),
-                  child: Text('$number2'),
+                  child: Text('$value'),
                 );
               },
             ),
@@ -193,63 +193,67 @@ class _NumberViewState extends State<NumberView> {
 }
 
 @protected
-typedef SelectorModel<C extends Listenable, T> =
-    T Function(BuildContext context, C controller);
+typedef StateSelector<T, S> = S Function(T viewModel);
 
 @protected
-typedef SelectorFunctionBuilder<T> =
-    Widget Function(BuildContext context, T model, Widget? child);
+typedef SelectorBuilder<S> = Widget Function(BuildContext context, S value);
 
-@protected
-typedef ShouldRebuild<T> = bool Function(T previous, T next);
-
-class SelectorBuilderWidget<C extends Listenable, T> extends StatefulWidget {
-  final C controller;
-  final SelectorModel<C, T> selector;
-  final SelectorFunctionBuilder<T> builder;
-  final ShouldRebuild<T>? shouldRebuild;
-  final Widget? child;
+class SelectorBuilderWidget<T extends ChangeNotifier, S>
+    extends StatefulWidget {
+  final T viewModel;
+  final StateSelector<T, S> selector;
+  final SelectorBuilder<S> builder;
+  final bool Function(S previous, S current)? shouldRebuild;
 
   const SelectorBuilderWidget({
     super.key,
-    required this.controller,
+    required this.viewModel,
     required this.selector,
     required this.builder,
     this.shouldRebuild,
-    this.child,
   });
 
   @override
-  State<SelectorBuilderWidget<C, T>> createState() =>
-      _SelectorBuilderWidgetState<C, T>();
+  State<SelectorBuilderWidget<T, S>> createState() => _SelectorState<T, S>();
 }
 
-class _SelectorBuilderWidgetState<C extends Listenable, T>
-    extends State<SelectorBuilderWidget<C, T>> {
-  late T _selectedValue;
+class _SelectorState<T extends ChangeNotifier, S>
+    extends State<SelectorBuilderWidget<T, S>> {
+  late S _selectedValue;
 
   @override
   void initState() {
     super.initState();
-    _selectedValue = widget.selector(context, widget.controller);
+    _selectedValue = widget.selector(widget.viewModel);
+  }
+
+  @override
+  void didUpdateWidget(SelectorBuilderWidget<T, S> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      _selectedValue = widget.selector(widget.viewModel);
+    }
+  }
+
+  bool _shouldRebuild(S previous, S current) {
+    if (widget.shouldRebuild != null) {
+      return widget.shouldRebuild!(previous, current);
+    }
+    return previous != current;
   }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, _) {
-        final newState = widget.selector(context, widget.controller);
+      listenable: widget.viewModel,
+      builder: (context, child) {
+        final newValue = widget.selector(widget.viewModel);
 
-        final rebuild =
-            widget.shouldRebuild?.call(_selectedValue, newState) ??
-            (_selectedValue != newState);
-
-        if (rebuild) {
-          _selectedValue = newState;
+        if (_shouldRebuild(_selectedValue, newValue)) {
+          _selectedValue = newValue;
         }
 
-        return widget.builder(context, _selectedValue, widget.child);
+        return widget.builder(context, _selectedValue);
       },
     );
   }
