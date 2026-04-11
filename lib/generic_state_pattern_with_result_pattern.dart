@@ -80,6 +80,10 @@ class UserModel {
   final String? name;
 
   UserModel({this.name});
+
+  UserModel copyWith({String? name}) {
+    return UserModel(name: name ?? this.name);
+  }
 }
 
 // Repository
@@ -102,9 +106,9 @@ class UserRepositoryImpl implements UserRepository {
 }
 
 // ViewModel
-typedef _ViewModel = ChangeNotifier;
-
 typedef UserState = AppState<UserModel>;
+
+typedef _ViewModel = ChangeNotifier;
 
 abstract interface class UserViewModel extends _ViewModel {
   UserState get userState;

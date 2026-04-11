@@ -55,6 +55,10 @@ class UserModel {
   final String? name;
 
   UserModel({this.name});
+
+  UserModel copyWith({String? name}) {
+    return UserModel(name: name ?? this.name);
+  }
 }
 
 // Repository
