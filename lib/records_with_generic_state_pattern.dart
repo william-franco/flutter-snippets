@@ -22,28 +22,38 @@ class MyApp extends StatelessWidget {
 }
 
 // Generic State Pattern
-sealed class AppState<T> {
+sealed class AppState<S, E extends Exception> {
   const AppState();
 }
 
-final class InitialState<T> extends AppState<T> {
+final class InitialState<S, E extends Exception> extends AppState<S, E> {
   const InitialState();
 }
 
-final class LoadingState<T> extends AppState<T> {
+final class LoadingState<S, E extends Exception> extends AppState<S, E> {
   const LoadingState();
 }
 
-final class SuccessState<T> extends AppState<T> {
-  final T data;
+final class SuccessState<S, E extends Exception> extends AppState<S, E> {
+  final S data;
 
   const SuccessState({required this.data});
 }
 
-final class ErrorState<T> extends AppState<T> {
+final class ErrorState<S, E extends Exception> extends AppState<S, E> {
+  final E error;
+
+  const ErrorState({required this.error});
+}
+
+// Custom Exception
+class UserException implements Exception {
   final String message;
 
-  const ErrorState({required this.message});
+  const UserException(this.message);
+
+  @override
+  String toString() => 'UserException: $message';
 }
 
 // Model
@@ -58,7 +68,7 @@ class UserModel {
 }
 
 // Repository
-typedef UserResult = (UserModel? user, Exception? exception); // Records
+typedef UserResult = (UserModel? user, UserException? exception); // Records
 
 abstract interface class UserRepository {
   Future<UserResult> getUserData();
@@ -71,13 +81,13 @@ class UserRepositoryImpl implements UserRepository {
       await Future.delayed(Duration(seconds: 4));
       return (UserModel(name: 'John Doe'), null);
     } catch (error) {
-      return (null, Exception('An error occurred.'));
+      return (null, UserException('An error occurred.'));
     }
   }
 }
 
 // ViewModel
-typedef UserState = AppState<UserModel>;
+typedef UserState = AppState<UserModel, UserException>;
 
 typedef _ViewModel = ChangeNotifier;
 
@@ -105,9 +115,15 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
 
     if (user != null) {
       _emit(SuccessState(data: user));
-    } else {
-      _emit(ErrorState(message: '$error'));
+      return;
     }
+
+    if (error != null) {
+      _emit(ErrorState(error: error));
+      return;
+    }
+
+    _emit(ErrorState(error: UserException('Another exception.')));
   }
 
   void _emit(UserState newState) {
@@ -175,7 +191,7 @@ class _UserViewState extends State<UserView> {
                 InitialState() => const SizedBox.shrink(),
                 LoadingState() => const CircularProgressIndicator(),
                 SuccessState(data: final user) => Text('User: ${user.name}'),
-                ErrorState(message: final message) => Text('Error: $message'),
+                ErrorState(error: final e) => Text('Error: ${e.message}'),
               };
             },
           ),

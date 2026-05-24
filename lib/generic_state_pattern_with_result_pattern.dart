@@ -22,28 +22,28 @@ class MyApp extends StatelessWidget {
 }
 
 // Generic State Pattern
-sealed class AppState<T> {
+sealed class AppState<S, E extends Exception> {
   const AppState();
 }
 
-final class InitialState<T> extends AppState<T> {
+final class InitialState<S, E extends Exception> extends AppState<S, E> {
   const InitialState();
 }
 
-final class LoadingState<T> extends AppState<T> {
+final class LoadingState<S, E extends Exception> extends AppState<S, E> {
   const LoadingState();
 }
 
-final class SuccessState<T> extends AppState<T> {
-  final T data;
+final class SuccessState<S, E extends Exception> extends AppState<S, E> {
+  final S data;
 
   const SuccessState({required this.data});
 }
 
-final class ErrorState<T> extends AppState<T> {
-  final String message;
+final class ErrorState<S, E extends Exception> extends AppState<S, E> {
+  final E error;
 
-  const ErrorState({required this.message});
+  const ErrorState({required this.error});
 }
 
 // Result Pattern
@@ -75,6 +75,16 @@ final class ErrorResult<S, E extends Exception> extends Result<S, E> {
   const ErrorResult({required this.error});
 }
 
+// Custom Exception
+class UserException implements Exception {
+  final String message;
+
+  const UserException(this.message);
+
+  @override
+  String toString() => 'UserException: $message';
+}
+
 // Model
 class UserModel {
   final String? name;
@@ -87,7 +97,7 @@ class UserModel {
 }
 
 // Repository
-typedef UserResult = Result<UserModel, Exception>;
+typedef UserResult = Result<UserModel, UserException>;
 
 abstract interface class UserRepository {
   Future<UserResult> findOneUser();
@@ -100,13 +110,13 @@ class UserRepositoryImpl implements UserRepository {
       await Future.delayed(Duration(seconds: 4));
       return SuccessResult(value: UserModel(name: 'John Doe'));
     } catch (error) {
-      return ErrorResult(error: Exception('An error occurred.'));
+      return ErrorResult(error: UserException('An error occurred.'));
     }
   }
 }
 
 // ViewModel
-typedef UserState = AppState<UserModel>;
+typedef UserState = AppState<UserModel, UserException>;
 
 typedef _ViewModel = ChangeNotifier;
 
@@ -132,12 +142,12 @@ class UserViewModelImpl extends _ViewModel implements UserViewModel {
 
     final result = await userRepository.findOneUser();
 
-    final state = result.fold<UserState>(
+    final userState = result.fold<UserState>(
       onSuccess: (value) => SuccessState(data: value),
-      onError: (error) => ErrorState(message: '$error'),
+      onError: (error) => ErrorState(error: error),
     );
 
-    _emit(state);
+    _emit(userState);
   }
 
   void _emit(UserState newState) {
@@ -205,7 +215,7 @@ class _UserViewState extends State<UserView> {
                 InitialState() => const SizedBox.shrink(),
                 LoadingState() => const CircularProgressIndicator(),
                 SuccessState(data: final user) => Text('User: ${user.name}'),
-                ErrorState(message: final message) => Text('Error: $message'),
+                ErrorState(error: final e) => Text('Error: ${e.message}'),
               };
             },
           ),
