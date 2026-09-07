@@ -22,25 +22,25 @@ class MyApp extends StatelessWidget {
 }
 
 // Generic State Pattern
-sealed class AppState<T> {
-  const AppState();
+sealed class StatePattern<T> {
+  const StatePattern();
 }
 
-final class InitialState<T> extends AppState<T> {
+final class InitialState<T> extends StatePattern<T> {
   const InitialState();
 }
 
-final class LoadingState<T> extends AppState<T> {
+final class LoadingState<T> extends StatePattern<T> {
   const LoadingState();
 }
 
-final class SuccessState<T> extends AppState<T> {
+final class SuccessState<T> extends StatePattern<T> {
   final T data;
 
   const SuccessState({required this.data});
 }
 
-final class ErrorState<T> extends AppState<T> {
+final class ErrorState<T> extends StatePattern<T> {
   final String message;
 
   const ErrorState({required this.message});
@@ -75,7 +75,7 @@ class UserRepositoryImpl implements UserRepository {
 }
 
 // ViewModel
-typedef UserState = AppState<UserModel>;
+typedef UserState = StatePattern<UserModel>;
 
 typedef _ViewModel = ChangeNotifier;
 

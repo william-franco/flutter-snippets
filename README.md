@@ -1,7 +1,33 @@
 # Flutter Snippets
 
-Under construction.
+Reusable Dart and Flutter code snippets and patterns.
 
+## Stack
+
+| Technology | Version |
+|------------|---------|
+| Dart SDK | ^3.13.2 |
+| cupertino_icons | ^1.0.8 |
+| flutter_lints | ^6.0.0 |
+| Android Gradle Plugin | 9.1.0 |
+| Kotlin | 2.4.0 |
+| compileSdk / targetSdk | 36 |
+| minSdk | 29 |
+| JVM | 25 |
+| iOS Deployment Target | 15.0 |
+| Swift | 5.0 |
+
+## Architecture
+
+```
+lib/
+    ├── generic_state_pattern.dart
+    ├── generic_state_pattern_with_result_pattern.dart
+    ├── records_with_generic_state_pattern.dart
+    ├── selector_state.dart
+    ├── state_abstraction.dart
+    └── when_condition.dart
+```
 
 ## Coverage
 
@@ -13,7 +39,6 @@ genhtml coverage/lcov.info -o coverage/html
 
 open coverage/html/index.html
 
-
 ## ScreenShots
 
 | Image 1 | Image 2 | Image 3 |
@@ -24,8 +49,7 @@ open coverage/html/index.html
 |----------|----------|----------|
 | ![App Screenshot](assets/screenshots/screen-4.png) | ![App Screenshot](assets/screenshots/screen-5.png) | ![App Screenshot](assets/screenshots/screen-6.png) |
 
-
-## Examples of commits
+## Commits
 
 ```
 git add . && git commit -m ":rocket: Initial commit." && git push
@@ -44,7 +68,6 @@ git add . && git commit -m ":test_tube: Added test functionality xyz." && git pu
 git add . && git commit -m ":construction_worker: Building in progress." && git push
 git add . && git commit -m ":construction_worker: Added CI build system." && git push
 ```
-
 
 ## License
 
