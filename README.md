@@ -1,12 +1,26 @@
 # Flutter Snippets
 
-Reusable Dart and Flutter code snippets and patterns.
+Standalone Dart snippets demonstrating reusable state and result patterns.
+
+Includes generic state wrappers, selector helpers, and record-based state examples.
+
+Meant to be copied into larger apps or used as study material for pattern design.
+
+## Structure
+
+```mermaid
+flowchart LR
+  StatePatternSnippet --> UIConsumer
+  ResultPatternSnippet --> RepositoryCall
+  SelectorSnippet --> PartialRebuild
+  AbstractionSnippet --> ConcreteImplementation
+```
 
 ## Stack
 
 | Technology | Version |
 |------------|---------|
-| Dart SDK | ^3.13.2 |
+| Dart SDK | ^3.13.3 |
 | cupertino_icons | ^1.0.8 |
 | flutter_lints | ^6.0.0 |
 | Android Gradle Plugin | 9.1.0 |
