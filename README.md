@@ -20,9 +20,10 @@ flowchart LR
 
 | Technology | Version |
 |------------|---------|
-| Dart SDK | ^3.13.5 |
+| Dart SDK | ^3.13.7 |
 | cupertino_icons | ^1.0.8 |
 | flutter_lints | ^6.0.0 |
+| Gradle | 9.3.1 |
 | Android Gradle Plugin | 9.1.0 |
 | Kotlin | 2.4.0 |
 | NDK | 30.0.16248370 |
