@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## 2026-11-22
+
+- Commit: Added Linux E2E integration tests, CI workflow, and refreshed web/linux platforms.
+  - Added integration_test, GitHub Actions Linux E2E step, and regenerated web/linux host folders.
+
 ## 2026-11-14
 
 - Commit: Updated toolchain to Dart SDK ^3.14.0, Gradle 9.5.0, Android Gradle Plugin 9.3.1 and Kotlin 2.4.20.
