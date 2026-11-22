@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## 2026-11-22
 
+- Linux CI E2E runs under xvfb-run for headless GitHub Actions runners.
+
 - Commit: Added Linux E2E integration tests, CI workflow, and refreshed web/linux platforms.
   - Added integration_test, GitHub Actions Linux E2E step, and regenerated web/linux host folders.
 
